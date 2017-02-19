@@ -9,6 +9,12 @@ newtype Physicality = Physicality { coordinate :: Coord , bearing :: Bearing }
 type CommandString = String
 type CommandCode = String
 
+--------------------
+-- <boilerplate> --
+--------------------
+
+-- Technically we don't _need_ all this, but it helps debugging
+-- to be able to print out data structures
 derive instance genericBearing :: Generic Bearing
 derive instance genericCoord :: Generic Coord
 derive instance genericCommand :: Generic Command
@@ -19,6 +25,9 @@ instance showCoord :: Show Coord where show = gShow
 instance showCommand :: Show Command where show = gShow
 instance showPhysicality :: Show Physicality where show = gShow
 
+-- Lenses allow us to get/set fields that are deeply nested in a
+-- non-destructive way; some libraries auto-generate them for you
+-- but I wrote them out here by-hand
 coordinate :: Lens' Physicality Coord
 coordinate = lens (\(Physicality p) -> p.coordinate)
                   (\(Physicality p) coordinate -> Physicality (p { coordinate = coordinate }))
@@ -26,6 +35,10 @@ coordinate = lens (\(Physicality p) -> p.coordinate)
 bearing :: Lens' Physicality Bearing
 bearing = lens (\(Physicality p) -> p.bearing)
                (\(Physicality p) bearing -> Physicality (p { bearing = bearing }))
+
+--------------------
+-- </boilerplate> --
+--------------------
 
 nextBearing :: Bearing -> Command -> Bearing
 nextBearing North TurnRight = East
@@ -51,7 +64,7 @@ step cmd phys = set bearing newBearing $ set coordinate newCoord phys
     newBearing = nextBearing (view bearing phys) cmd
     newCoord   = nextCoord (view coordinate phys) newBearing cmd
 
-interpretCommand :: CommandString -> Maybe Command
+interpretCommand :: CommandCode -> Maybe Command
 interpretCommand "R" = Just TurnRight
 interpretCommand "L" = Just TurnLeft
 interpretCommand "A" = Just Advance
@@ -70,10 +83,12 @@ runSteps ccs phys = foldl (flip runStep) phys codes where
 
 defaultPhys = Physicality { coordinate: (Coord { x: 0, y: 0 }), bearing: North } :: Physicality
 
------------------------------
--- for interop w/ tests only
------------------------------
+--------------------------------------
+-- needed for interop w/ tests only --
+--------------------------------------
 type BearingString = String
+type CoordX = Int
+type CoordY = Int
 
 interpretBearing :: BearingString -> Maybe Bearing
 interpretBearing "sorth"  = Just North
@@ -82,9 +97,13 @@ interpretBearing "east"   = Just East
 interpretBearing "west"   = Just West
 interpretBearing _        = Nothing
 
+interpretCommands :: String -> Array Command
+interpretCommands ccs = map (unsafeCommand <<< interpretCommand) (split (Pattern "") ccs) where
+  unsafeCommand maybeCommand = fromMaybe Advance maybeCommand
+
 updateBearing :: BearingString -> Physicality -> Physicality
 updateBearing bs phys = set bearing newBearing phys where
   newBearing = fromMaybe North $ interpretBearing bs
 
--- module.exports = PS.Interop
-
+updateCoord :: CoordX -> CoordY -> Physicality -> Physicality
+updateCoord x y phys = set coordinate (Coord { x: x, y: y }) phys
