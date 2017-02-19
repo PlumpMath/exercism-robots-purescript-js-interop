@@ -3,10 +3,11 @@ module Main where
 import Prelude
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, log)
-import Data.Maybe
-import Data.String (Pattern(..), split)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Optic.Core (Lens'(), lens, set, view)
-import Data.Generic
+import Data.Generic (class Generic, gShow)
+import Data.String (split, Pattern(..))
+import Data.Foldable (foldl)
 
 import Unsafe.Coerce
 undefined = unsafeCoerce unit :: forall a. a
@@ -44,9 +45,6 @@ interpretCommand "L" = Just TurnLeft
 interpretCommand "A" = Just Advance
 interpretCommand _   = Nothing
 
-interpretCommands :: CommandCode -> Array (Maybe Command)
-interpretCommands = map interpretCommand <<< split (Pattern "")
-
 nextBearing :: Bearing -> Command -> Bearing
 nextBearing North TurnRight = East
 nextBearing North TurnLeft  = West
@@ -71,16 +69,24 @@ step cmd phys = set bearing newBearing $ set coordinate newCoord phys
     newBearing = nextBearing (view bearing phys) cmd
     newCoord   = nextCoord (view coordinate phys) newBearing cmd
 
+runStep :: CommandCode -> Physicality -> Physicality
+runStep cc phys = newPhys where
+  maybeNewPhys = do
+    cmd <- interpretCommand cc
+    pure $ step cmd phys
+  newPhys = fromMaybe phys maybeNewPhys
+
+runSteps :: CommandString -> Physicality -> Physicality
+runSteps ccs phys = foldl (flip runStep) phys codes where
+  codes = split (Pattern "") ccs
+
 foobar :: Bearing -> Coord -> Physicality
 foobar = undefined
+
+defaultPhys = Physicality { coordinate: (Coord { x: 0, y: 0 }), bearing: North } :: Physicality
 
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = do
   let phys = Physicality { coordinate: (Coord { x: 7, y: 3 }), bearing: North }
-  let newPhys = step TurnLeft $
-                step Advance $
-                step TurnLeft $
-                step Advance $
-                step Advance $
-                step TurnRight phys
+  let newPhys = runSteps "RAALAL" phys
   log $ show newPhys
