@@ -12,5 +12,8 @@
   },
   "devDependencies": {
     "purescript-psci-support": "^2.0.0"
+  },
+  "resolutions": {
+    "purescript-foldable-traversable": "~2.2.0"
   }
 }

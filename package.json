@@ -8,5 +8,9 @@
     "bower": "^1.8.0",
     "jasmine-node": "^1.14.5",
     "pulp": "^10.0.1"
+  },
+  "scripts": {
+    "build": "pulp build --to robots.js; echo \"module.exports = PS.Robots\" >> robots.js",
+    "test": "jasmine-node ."
   }
 }
